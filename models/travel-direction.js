@@ -39,7 +39,7 @@ function travelDirection(travelDirection) {
 
       // display a wait indicator to show the time taken for this travel
       let waitTime = travelDirection.waitTime;
-      let count = 0;
+      let count = 1;
 
       let interval = window.setInterval(function() {
         let waitIndicator = document.createElement("p");

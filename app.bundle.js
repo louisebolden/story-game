@@ -302,7 +302,7 @@
 
 	        // display a wait indicator to show the time taken for this travel
 	        var waitTime = travelDirection.waitTime;
-	        var count = 0;
+	        var count = 1;
 
 	        var interval = window.setInterval(function () {
 	          var waitIndicator = document.createElement("p");
