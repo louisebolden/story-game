@@ -1,4 +1,5 @@
-// Initialise Firebase
+// Initialise Firebase and export the auth method that allows us to sign users
+// in, as well as reference(s) to key parts of the database
 
 /* global firebase */
 
@@ -13,5 +14,7 @@ firebase.initializeApp({
 
 let database = firebase.database();
 
-module.exports.firebasePlayerRef = database.ref('/players/experimentUserId');
+module.exports.firebaseAuth = firebase.auth();
+module.exports.firebaseDb = database;
 module.exports.firebaseLocationsRef = database.ref('/locations');
+module.exports.firebaseObjectsRef = database.ref('/objects');

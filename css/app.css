@@ -15,6 +15,13 @@ html {
   margin: 2rem 0 4rem;
 }
 
+.save {
+  cursor: pointer;
+  position: absolute;
+  right: 2rem;
+  top: 1rem;
+}
+
 .output-wrap {
   position: relative;
 }
