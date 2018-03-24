@@ -44,27 +44,35 @@
 /* 0 */
 /***/ function(module, exports, __webpack_require__) {
 
+	__webpack_require__(1);
+	(function webpackMissingModule() { throw new Error("Cannot find module \"help\""); }());
+
+
+/***/ },
+/* 1 */
+/***/ function(module, exports, __webpack_require__) {
+
 	"use strict";
 
 	// initialise Firebase to connect to our real-time database and store the most
 	// frequently-used references to key database locations
 
-	var firebase = __webpack_require__(1);
+	var firebase = __webpack_require__(2);
 	var firebaseAuth = firebase.firebaseAuth;
 	var firebaseDb = firebase.firebaseDb;
 	var firebaseLocationsRef = firebase.firebaseLocationsRef;
 	var firebaseObjectsRef = firebase.firebaseObjectsRef;
 
 	// global values for managing the player/game state and storing DOM element refs
-	var globals = __webpack_require__(4).globals;
+	var globals = __webpack_require__(3).globals;
 	var player = globals.player;
 	var dom = globals.elements;
 
 	// models to apply consistent attributes and behaviours to game objects
-	var TravelDirection = __webpack_require__(2).travelDirection;
+	var TravelDirection = __webpack_require__(4).travelDirection;
 
 	// utilities
-	var throttle = __webpack_require__(3);
+	var throttle = __webpack_require__(5);
 
 	// observe the outputEl and, if its contents start to expand further than its
 	// height then scroll its overflow-scroll-hidden contents into view
@@ -322,7 +330,7 @@
 	};
 
 /***/ },
-/* 1 */
+/* 2 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -349,14 +357,35 @@
 	module.exports.firebaseObjectsRef = database.ref('/objects');
 
 /***/ },
-/* 2 */
+/* 3 */
+/***/ function(module, exports) {
+
+	"use strict";
+
+	var globals = {
+	  elements: {
+	    loadingIndicator: document.getElementsByClassName("loading")[0],
+	    outputEl: document.getElementsByClassName("output")[0]
+	  },
+	  player: {
+	    items: [],
+	    location: undefined,
+	    ref: undefined,
+	    uid: undefined
+	  }
+	};
+
+	module.exports.globals = globals;
+
+/***/ },
+/* 4 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 
 	// global values for managing player/game state and storing DOM element refs
 
-	var globals = __webpack_require__(4).globals;
+	var globals = __webpack_require__(3).globals;
 	var player = globals.player;
 	var dom = globals.elements;
 
@@ -445,7 +474,7 @@
 	}
 
 /***/ },
-/* 3 */
+/* 5 */
 /***/ function(module, exports) {
 
 	/* WEBPACK VAR INJECTION */(function(global) {/**
@@ -889,27 +918,6 @@
 	module.exports = throttle;
 
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
-
-/***/ },
-/* 4 */
-/***/ function(module, exports) {
-
-	"use strict";
-
-	var globals = {
-	  elements: {
-	    loadingIndicator: document.getElementsByClassName("loading")[0],
-	    outputEl: document.getElementsByClassName("output")[0]
-	  },
-	  player: {
-	    items: [],
-	    location: undefined,
-	    ref: undefined,
-	    uid: undefined
-	  }
-	};
-
-	module.exports.globals = globals;
 
 /***/ }
 /******/ ]);
