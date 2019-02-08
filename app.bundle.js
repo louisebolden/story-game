@@ -44,35 +44,32 @@
 /* 0 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(1);
-	(function webpackMissingModule() { throw new Error("Cannot find module \"help\""); }());
-
-
-/***/ },
-/* 1 */
-/***/ function(module, exports, __webpack_require__) {
-
 	"use strict";
 
 	// initialise Firebase to connect to our real-time database and store the most
 	// frequently-used references to key database locations
 
-	var firebase = __webpack_require__(2);
-	var firebaseAuth = firebase.firebaseAuth;
-	var firebaseDb = firebase.firebaseDb;
-	var firebaseLocationsRef = firebase.firebaseLocationsRef;
-	var firebaseObjectsRef = firebase.firebaseObjectsRef;
+	var _require = __webpack_require__(1),
+	    auth = _require.auth,
+	    db = _require.db,
+	    dbLocationsRef = _require.dbLocationsRef,
+	    dbItemsRef = _require.dbItemsRef;
 
-	// global values for managing the player/game state and storing DOM element refs
-	var globals = __webpack_require__(3).globals;
-	var player = globals.player;
-	var dom = globals.elements;
+	// import this beast for managing the player/game state and updating the DOM
 
-	// models to apply consistent attributes and behaviours to game objects
-	var TravelDirection = __webpack_require__(4).travelDirection;
+
+	var _require$globals = __webpack_require__(2).globals,
+	    player = _require$globals.player,
+	    dom = _require$globals.dom;
+
+	// import models for applying consistent attributes and behaviours to game things
+
+
+	var Item = __webpack_require__(6);
+	var TravelDirection = __webpack_require__(3);
 
 	// utilities
-	var throttle = __webpack_require__(5);
+	var throttle = __webpack_require__(4);
 
 	// observe the outputEl and, if its contents start to expand further than its
 	// height then scroll its overflow-scroll-hidden contents into view
@@ -99,10 +96,10 @@
 
 	// set an observer on the current user's auth status, to respond to any logins
 	// or logouts
-	firebaseAuth.onAuthStateChanged(function (user) {
+	auth.onAuthStateChanged(function (user) {
 	  if (user) {
 	    console.log("user signed in:", user.uid);
-	    player.ref = firebaseDb.ref("/players/" + user.uid);
+	    player.ref = db.ref("/players/" + user.uid);
 	    player.uid = user.uid;
 
 	    // if a sign-in is observed, make sure we start observing this player's
@@ -121,7 +118,7 @@
 	    // if user not signed in, do an anonymous auth so they can still play the
 	    // game and optionally later do a non-anon auth to properly save their game
 	    console.log("attempting anon auth...");
-	    firebaseAuth.signInAnonymously().catch(function (error) {
+	    auth.signInAnonymously().catch(function (error) {
 	      console.log("anonymous sign-in error:", error);
 	    });
 	  }
@@ -132,59 +129,53 @@
 	function setPlayerRefObserver(playerRef) {
 	  playerRef.on("value", function (snapshot) {
 	    var playerData = snapshot.val();
-	    console.log("fetched playerData:", playerData);
+	    console.log("fetched OR updated playerData:", playerData);
 
 	    if (playerData) {
-	      (function () {
-	        var outputEl = dom.outputEl;
-
-	        // update the local information about any items the player is holding
-	        firebaseObjectsRef.orderByChild("location").equalTo(player.uid).once("value", function (snapshot) {
-	          var playerItems = snapshot.val();
-	          if (playerItems) {
-	            // store an array of objects locally
-	            var itemsArray = [];
-	            for (var key in playerItems) {
-	              var item = playerItems[key];
-	              itemsArray.push({
-	                description: item.description,
-	                name: item.name,
-	                size: item.size,
-	                uid: key
-	              });
-	            }
-	            player.items = itemsArray;
-	            console.log("updated player.items:", player.items);
-	          }
-
-	          // check whether the player has moved to a new location
-	          var newPlayerLoc = playerData.location;
-	          if (player.location != newPlayerLoc) {
-	            // current location descriptor text does not match player's location, so
-	            // fetch updated location descriptor text to show instead
-	            firebaseLocationsRef.child(newPlayerLoc).once("value").then(function (snapshot) {
-	              var newLocData = snapshot.val();
-	              if (newLocData) {
-	                // build the bulk of the description text for the player's current
-	                // location and append it to the output
-	                var outputTextNodes = buildOutputTextNodes(playerData, newLocData, player.items);
-	                outputEl.appendChild(outputTextNodes);
-
-	                // add the new travel direction options to the output, too
-	                outputEl.appendChild(travelDirEls(newLocData.travelDirections));
-
-	                // update global player state with this new location
-	                player.location = newPlayerLoc;
-	              }
+	      // update the local information about any items the player is holding
+	      dbItemsRef.orderByChild("location").equalTo(player.uid).once("value", function (snapshot) {
+	        var playerItems = snapshot.val();
+	        if (playerItems) {
+	          // store an array of objects locally
+	          var itemsArray = [];
+	          for (var key in playerItems) {
+	            var item = playerItems[key];
+	            itemsArray.push({
+	              description: item.description,
+	              name: item.name,
+	              size: item.size,
+	              uid: key
 	            });
 	          }
-	        });
-
-	        // hide the initial loading indicator, if it's showing
-	        if (!dom.loadingIndicator.classList.contains("hide")) {
-	          dom.loadingIndicator.classList.add("hide");
+	          player.items = itemsArray;
 	        }
-	      })();
+
+	        // check whether the player has moved to a new location
+	        var newPlayerLoc = playerData.location;
+	        if (player.location != newPlayerLoc) {
+	          // current location descriptor text does not match player's location, so
+	          // fetch updated location descriptor text to show instead
+	          dbLocationsRef.child(newPlayerLoc).once("value").then(function (snapshot) {
+	            var newLocData = snapshot.val();
+	            if (newLocData) {
+	              // build the description text for the player's current location
+	              // and append it to the output
+	              dom.appendLocationDataToOutputEl({
+	                playerData: playerData,
+	                locationData: newLocData,
+	                travelDirs: newLocData.travelDirections.map(TravelDirection),
+	                items: player.items.map(Item)
+	              });
+
+	              // update global player state with this new location
+	              player.location = newPlayerLoc;
+	            }
+	          });
+	        }
+	      });
+
+	      // hide the initial loading indicator
+	      dom.loadingIndicator.classList.add("hide");
 	    }
 	  });
 	}
@@ -201,7 +192,7 @@
 	    }
 
 	    if (!playerData || !playerData.description) {
-	      updatedData["description"] = "There's nothing unusual about your appearance today.";
+	      updatedData["description"] = "There's nothing unusual about your appearance.";
 	    }
 
 	    if (!playerData || !playerData.location) {
@@ -218,85 +209,6 @@
 
 	    playerRef.update(updatedData);
 	  });
-	}
-
-	function buildOutputTextNodes(playerData, locationData, inventoryItems) {
-	  // add the new location descriptor text to the output, as well as the
-	  // current time descriptor text and a note about what the player is
-	  // holding (all wrapped in a set of <p></p> tags)
-	  var locText = document.createTextNode("You are " + playerData.action + " in " + locationData.description + ".");
-	  var timeText = document.createTextNode(" It is " + currentTimeStatement(playerData.ticksPassed) + ".");
-	  var invText = document.createTextNode(inventoryString(inventoryItems));
-	  var pEl = document.createElement("p");
-	  pEl.appendChild(locText);
-	  pEl.appendChild(timeText);
-	  pEl.appendChild(invText);
-
-	  return pEl;
-	}
-
-	// return a string to represent the player's inventory
-	function inventoryString(items) {
-	  if (items.length < 1) {
-	    return "";
-	  } else {
-	    // TODO: should actually return a span containing interactive spans here,
-	    // rather than simple text (and update the method above to expect a non-text
-	    // node)
-
-	    return " You are holding [items].";
-	  }
-	}
-
-	// this function produces the interactive DOM elements that players can click on
-	// to travel in a direction, from the array of travelDirections that we get from
-	// their current location in the database
-	function travelDirEls(travelDirs) {
-	  var travelDirInstances = travelDirs.map(function (travelDir) {
-	    return TravelDirection(travelDir);
-	  });
-	  var travelDirWrap = document.createElement("p");
-	  var startTextNode = document.createTextNode("There is ");
-	  var endTextNode = document.createTextNode(".");
-
-	  travelDirWrap.appendChild(startTextNode);
-
-	  travelDirInstances.forEach(function (instance) {
-	    travelDirWrap.appendChild(instance.element);
-	  });
-
-	  travelDirWrap.appendChild(endTextNode);
-
-	  return travelDirWrap;
-	}
-
-	var timeStatements = {
-	  0: "after midnight",
-	  1: "just before dawn",
-	  2: "early morning",
-	  3: "mid-morning",
-	  4: "late morning",
-	  5: "around midday",
-	  6: "early afternoon",
-	  7: "mid-afternoon",
-	  8: "late afternoon",
-	  9: "early evening",
-	  10: "late evening",
-	  11: "late at night"
-	};
-
-	// ticks represent minutes in this game, woohoo!
-	// so find out how many hours of the current day have elapsed, and then choose
-	// the closest timeStatement from the list above
-	function currentTimeStatement(ticksPassed) {
-	  var daysPassed = Math.floor(ticksPassed / 1440);
-	  var hoursPassed = Math.floor((ticksPassed - daysPassed * 1440) / 60);
-
-	  // for hoursPassed, we'll have a number between 0-23 so divide by two and
-	  // round down to get closest time statement
-	  var timeStatement = timeStatements[Math.floor(hoursPassed / 2)];
-
-	  return timeStatement;
 	}
 
 	// animated scroll function (thanks to https://gist.github.com/andjosh/6764939)
@@ -330,7 +242,7 @@
 	};
 
 /***/ },
-/* 2 */
+/* 1 */
 /***/ function(module, exports) {
 
 	"use strict";
@@ -351,21 +263,71 @@
 
 	var database = firebase.database();
 
-	module.exports.firebaseAuth = firebase.auth();
-	module.exports.firebaseDb = database;
-	module.exports.firebaseLocationsRef = database.ref('/locations');
-	module.exports.firebaseObjectsRef = database.ref('/objects');
+	module.exports.auth = firebase.auth();
+	module.exports.db = database;
+	module.exports.dbLocationsRef = database.ref('/locations');
+	module.exports.dbItemsRef = database.ref('/objects');
 
 /***/ },
-/* 3 */
+/* 2 */
 /***/ function(module, exports) {
 
 	"use strict";
 
+	var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
+
 	var globals = {
-	  elements: {
+	  dom: {
+	    // store references to always-present, frequently-used elements
 	    loadingIndicator: document.getElementsByClassName("loading")[0],
-	    outputEl: document.getElementsByClassName("output")[0]
+	    outputEl: document.getElementsByClassName("output")[0],
+	    // store snapshot of locationData after rendering the current location, so
+	    // it can be re-rendered if the player wants to take another look around
+	    mostRecentLocationData: undefined,
+	    // methods to make changes to the DOM
+	    appendLocationDataToOutputEl: function appendLocationDataToOutputEl(_ref) {
+	      var playerData = _ref.playerData,
+	          locationData = _ref.locationData,
+	          travelDirs = _ref.travelDirs,
+	          items = _ref.items;
+
+	      this.outputEl.appendChild(locationDesc(playerData, locationData));
+
+	      // add the player's inventory items to the output
+	      this.outputEl.appendChild(inventoryItemEls(items));
+
+	      // add the new travel direction options to the output, too
+	      this.outputEl.appendChild(travelDirEls(travelDirs));
+
+	      this.mostRecentLocationData = { playerData: playerData, locationData: locationData, travelDirs: travelDirs, items: items };
+	    },
+	    appendGoBackElToOutputEl: function appendGoBackElToOutputEl(text) {
+	      var _this = this;
+
+	      var goBackEl = document.createElement("p");
+	      var span = document.createElement("span");
+	      span.classList.add("interactive");
+	      span.innerText = text || "Look around.";
+	      span.onclick = function (event) {
+	        console.log("clicked:", event.target);
+	        _this.deactivateAllInteractiveEls();
+	        _this.appendLocationDataToOutputEl(_this.mostRecentLocationData);
+	      };
+	      goBackEl.appendChild(span);
+	      this.outputEl.appendChild(goBackEl);
+	    },
+	    appendWaitIndicatorToOutputEl: function appendWaitIndicatorToOutputEl() {
+	      var waitIndicator = document.createElement("p");
+	      waitIndicator.classList.add("wait-indicator");
+	      waitIndicator.innerText = ".";
+	      this.outputEl.appendChild(waitIndicator);
+	    },
+	    deactivateAllInteractiveEls: function deactivateAllInteractiveEls() {
+	      Array.from(document.getElementsByClassName("interactive")).forEach(function (el) {
+	        el.classList.remove("interactive");
+	        el.onclick = null;
+	      });
+	    }
 	  },
 	  player: {
 	    items: [],
@@ -377,25 +339,121 @@
 
 	module.exports.globals = globals;
 
+	var locationDesc = function locationDesc(playerData, locationData) {
+	  // add the new location descriptor text to the output, as well as the
+	  // current time descriptor text and a note about what the player is
+	  // holding (all wrapped in a set of <p></p> tags)
+	  var pEl = document.createElement("p");
+
+	  pEl.innerHTML = "\n    You are " + playerData.action + " in " + locationData.description + ".\n    It is " + currentTimeStatement(playerData.ticksPassed) + ".\n  ";
+
+	  return pEl;
+	};
+
+	// produce DOM elements that represent the player's inventory
+	var inventoryItemEls = function inventoryItemEls(itemInstances) {
+	  if (itemInstances.length > 0) {
+	    var _ret = function () {
+	      var itemNode = document.createElement("p");
+	      var startTextNode = document.createTextNode("You are holding ");
+	      var endTextNode = document.createTextNode(".");
+
+	      itemNode.appendChild(startTextNode);
+
+	      itemInstances.forEach(function (instance, index) {
+	        itemNode.appendChild(document.createTextNode("a "));
+	        itemNode.appendChild(instance.element);
+	        if (itemInstances.length > 1) {
+	          if (index === itemInstances.length - 2) {
+	            itemNode.appendChild(document.createTextNode(" and "));
+	          } else if (index < itemInstances.length - 2) {
+	            itemNode.appendChild(document.createTextNode(", "));
+	          }
+	        }
+	      });
+
+	      itemNode.appendChild(endTextNode);
+
+	      return {
+	        v: itemNode
+	      };
+	    }();
+
+	    if ((typeof _ret === "undefined" ? "undefined" : _typeof(_ret)) === "object") return _ret.v;
+	  }
+
+	  return "";
+	};
+
+	// this function produces the interactive DOM elements that players can click on
+	// to travel in a direction
+	var travelDirEls = function travelDirEls(travelDirInstances) {
+	  var travelDirNode = document.createElement("p");
+	  var startTextNode = document.createTextNode("There is ");
+	  var endTextNode = document.createTextNode(".");
+
+	  travelDirNode.appendChild(startTextNode);
+
+	  travelDirInstances.forEach(function (instance) {
+	    travelDirNode.appendChild(instance.element);
+	  });
+
+	  travelDirNode.appendChild(endTextNode);
+
+	  return travelDirNode;
+	};
+
+	// ticks represent minutes in this game, woohoo!
+	// so find out how many hours of the current day have elapsed, and then choose
+	// the closest timeStatement from the list above
+	var currentTimeStatement = function currentTimeStatement(ticksPassed) {
+	  var daysPassed = Math.floor(ticksPassed / 1440);
+	  var hoursPassed = Math.floor((ticksPassed - daysPassed * 1440) / 60);
+	  console.log("hoursPassed:", hoursPassed);
+
+	  // for hoursPassed, we'll have a number between 0-23 so divide by two and
+	  // round down to get closest time statement
+	  var timeStatement = timeStatements[Math.floor(hoursPassed / 2)];
+
+	  return timeStatement;
+	};
+
+	var timeStatements = {
+	  0: "after midnight",
+	  1: "just before dawn",
+	  2: "early morning",
+	  3: "mid-morning",
+	  4: "late morning",
+	  5: "around midday",
+	  6: "early afternoon",
+	  7: "mid-afternoon",
+	  8: "late afternoon",
+	  9: "early evening",
+	  10: "late evening",
+	  11: "late at night"
+	};
+
 /***/ },
-/* 4 */
+/* 3 */
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 
 	// global values for managing player/game state and storing DOM element refs
 
-	var globals = __webpack_require__(3).globals;
-	var player = globals.player;
-	var dom = globals.elements;
+	var _require$globals = __webpack_require__(2).globals,
+	    dom = _require$globals.dom,
+	    player = _require$globals.player;
 
 	// this function wraps the travelDirection information from the database with
 	// the functionality needed to actually allow the player to travel in that
 	// direction, and returns a more useful travelDirection object that includes an
 	// interactive element to put in the output that the player can click on to move
+
+
 	function travelDirection(travelDirection) {
 	  var travelDirObj = Object.assign({}, travelDirection);
-	  var element = document.createElement('span');
+	  var element = document.createElement("span");
 
 	  element.classList.add("interactive");
 	  element.dataset.descriptor = travelDirection.movementDescriptor;
@@ -405,7 +463,7 @@
 
 	  // when this element is clicked on, the player should move to the correct new
 	  // location and time should pass accordingly
-	  element.onclick = travelDirClickCallback;
+	  element.onclick = travelDirClick;
 
 	  // okay, we built an interactive element with a mega onclick handler so add
 	  // it to the returned travelDirection object ready to be displayed in the view
@@ -414,12 +472,12 @@
 	  return travelDirObj;
 	}
 
-	module.exports.travelDirection = travelDirection;
+	module.exports = travelDirection;
 
 	// clicking an element in the view that represents a Travel Direction enables
 	// the player to move in that direction, updating their position and the time
 	// that has passed
-	function travelDirClickCallback() {
+	function travelDirClick() {
 	  var travelDirection = this.dataset;
 	  var newLoc = travelDirection.target;
 	  var playerRef = player.ref;
@@ -433,10 +491,7 @@
 	    (function () {
 	      // all existing interactive elements should stop being interactive once
 	      // one is clicked - those choices are no longer available to the player
-	      Array.from(document.getElementsByClassName("interactive")).forEach(function (el) {
-	        el.classList.remove("interactive");
-	        el.onclick = null;
-	      });
+	      dom.deactivateAllInteractiveEls();
 
 	      // show the movementDescriptor in the output area
 	      var movementDescEl = document.createElement("p");
@@ -448,10 +503,7 @@
 	      var count = 1;
 
 	      var interval = window.setInterval(function () {
-	        var waitIndicator = document.createElement("p");
-	        waitIndicator.classList.add("wait-indicator");
-	        waitIndicator.innerText = ".";
-	        dom.outputEl.appendChild(waitIndicator);
+	        dom.appendWaitIndicatorToOutputEl();
 
 	        // wait until waitTime is up before actually completing this travel
 	        count++;
@@ -474,7 +526,7 @@
 	}
 
 /***/ },
-/* 5 */
+/* 4 */
 /***/ function(module, exports) {
 
 	/* WEBPACK VAR INJECTION */(function(global) {/**
@@ -918,6 +970,147 @@
 	module.exports = throttle;
 
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
+
+/***/ },
+/* 5 */,
+/* 6 */
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	// global values for managing player/game state and storing DOM element refs
+
+	var _require$globals = __webpack_require__(2).globals,
+	    dom = _require$globals.dom,
+	    player = _require$globals.player;
+
+	// we'll be getting the item's actions from firebase on click
+
+
+	var _require = __webpack_require__(1),
+	    dbItemsRef = _require.dbItemsRef;
+
+	// this model wraps item data that has been fetched from the database in an
+	// object that has additional properties and methods, notably a DOM element that
+	// can be used to display a representation of the item in the view's output
+	// area so that the player can click and interact with it
+
+	function item(item) {
+	  var itemObj = Object.assign({}, item);
+	  var element = document.createElement('span');
+
+	  element.classList.add("interactive");
+	  element.dataset.description = item.description;
+	  element.dataset.name = item.name;
+	  element.dataset.uid = item.uid;
+	  element.innerText = item.name;
+
+	  // when a player interacts with an object, its description and actions show
+	  element.onclick = itemClick;
+
+	  itemObj['element'] = element;
+
+	  return itemObj;
+	}
+
+	module.exports = item;
+
+	var itemClick = function itemClick(event) {
+	  var playerRef = player.ref;
+	  if (!playerRef) {
+	    console.log("ERROR: player cannot act in the game without authentication");
+	    return false;
+	  }
+
+	  // all existing interactive elements should stop being interactive once
+	  // one is clicked - those choices are no longer available to the player
+	  dom.deactivateAllInteractiveEls();
+
+	  var item = event.target;
+	  var actionEl = document.createElement("p");
+	  actionEl.innerText = "You look at the " + item.dataset.name + ".";
+	  dom.outputEl.appendChild(actionEl);
+
+	  // a tick or two passes during this inspection of the item
+	  var tickCount = 0;
+	  var interval = window.setInterval(function () {
+	    dom.appendWaitIndicatorToOutputEl();
+	    tickCount++;
+
+	    if (tickCount === 1) {
+	      var itemDescriptionEl = document.createElement("p");
+	      itemDescriptionEl.innerText = item.dataset.description;
+	      dom.outputEl.appendChild(itemDescriptionEl);
+
+	      // can also see the item's actions (if any)
+	      dbItemsRef.child(item.dataset.uid).once("value", function (snapshot) {
+	        var itemData = snapshot.val();
+	        if (itemData && itemData.actions) {
+	          (function () {
+	            var permittedActionEls = filterPermittedActions(itemData).map(createItemActionEl);
+	            var actionsNode = document.createElement("p");
+	            actionsNode.appendChild(document.createTextNode("You could "));
+	            permittedActionEls.forEach(function (el, index) {
+	              actionsNode.appendChild(el);
+	              actionsNode.appendChild(document.createTextNode(" the " + itemData.name));
+	              if (permittedActionEls.length > 1) {
+	                if (index === permittedActionEls.length - 2) {
+	                  actionsNode.appendChild(document.createTextNode(" or "));
+	                } else if (index < permittedActionEls.length - 2) {
+	                  actionsNode.appendChild(document.createTextNode(", "));
+	                }
+	              }
+	            });
+	            actionsNode.appendChild(document.createTextNode("."));
+	            dom.outputEl.appendChild(actionsNode);
+	          })();
+	        }
+
+	        window.clearInterval(interval);
+
+	        // show the 'Done' interactable once we've printed everything else
+	        dom.appendGoBackElToOutputEl();
+	      });
+
+	      playerRef.child("ticksPassed").once("value").then(function (snapshot) {
+	        var currentTicks = parseInt(snapshot.val(), 10) || 0;
+	        playerRef.update({ ticksPassed: currentTicks + 1 });
+	      });
+	    }
+	  }, 1000);
+	};
+
+	var filterPermittedActions = function filterPermittedActions(itemData) {
+	  var actions = itemData.actions;
+	  var permittedActions = [];
+
+	  for (var key in actions) {
+	    var action = actions[key];
+	    var conditions = action.conditions;
+
+	    if (conditions.includes("on-player") && itemData.location === player.uid || conditions.includes("not-on-player") && itemData.location !== player.uid) {
+	      permittedActions.push({
+	        description: action.description,
+	        done: action.return,
+	        name: key
+	      });
+	    }
+	  }
+
+	  return permittedActions;
+	};
+
+	var createItemActionEl = function createItemActionEl(action) {
+	  var span = document.createElement("span");
+	  span.classList.add("interactive");
+	  span.dataset.description = action.description;
+	  span.dataset.done = action.done;
+	  span.innerText = action.name;
+	  span.onclick = function (event) {
+	    console.log("clicked:", event.target);
+	  };
+	  return span;
+	};
 
 /***/ }
 /******/ ]);

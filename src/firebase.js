@@ -14,7 +14,7 @@ firebase.initializeApp({
 
 let database = firebase.database();
 
-module.exports.firebaseAuth = firebase.auth();
-module.exports.firebaseDb = database;
-module.exports.firebaseLocationsRef = database.ref('/locations');
-module.exports.firebaseObjectsRef = database.ref('/objects');
+module.exports.auth = firebase.auth();
+module.exports.db = database;
+module.exports.dbLocationsRef = database.ref('/locations');
+module.exports.dbItemsRef = database.ref('/objects');

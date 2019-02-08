@@ -1,9 +1,7 @@
 "use strict";
 
 // global values for managing player/game state and storing DOM element refs
-const globals = require("../src/globals.js").globals;
-const player = globals.player;
-const dom = globals.elements;
+const { dom, player } = require("../src/globals.js").globals;
 
 // this function wraps the travelDirection information from the database with
 // the functionality needed to actually allow the player to travel in that
@@ -11,7 +9,7 @@ const dom = globals.elements;
 // interactive element to put in the output that the player can click on to move
 function travelDirection(travelDirection) {
   let travelDirObj = Object.assign({}, travelDirection);
-  let element = document.createElement('span');
+  let element = document.createElement("span");
 
   element.classList.add("interactive");
   element.dataset.descriptor = travelDirection.movementDescriptor;
@@ -21,7 +19,7 @@ function travelDirection(travelDirection) {
 
   // when this element is clicked on, the player should move to the correct new
   // location and time should pass accordingly
-  element.onclick = travelDirClickCallback;
+  element.onclick = travelDirClick;
 
   // okay, we built an interactive element with a mega onclick handler so add
   // it to the returned travelDirection object ready to be displayed in the view
@@ -30,12 +28,12 @@ function travelDirection(travelDirection) {
   return travelDirObj;
 }
 
-module.exports.travelDirection = travelDirection;
+module.exports = travelDirection;
 
 // clicking an element in the view that represents a Travel Direction enables
 // the player to move in that direction, updating their position and the time
 // that has passed
-function travelDirClickCallback() {
+function travelDirClick() {
   let travelDirection = this.dataset;
   let newLoc = travelDirection.target;
   let playerRef = player.ref;
@@ -48,10 +46,7 @@ function travelDirClickCallback() {
   if (newLoc) {
     // all existing interactive elements should stop being interactive once
     // one is clicked - those choices are no longer available to the player
-    Array.from(document.getElementsByClassName("interactive")).forEach((el) => {
-      el.classList.remove("interactive");
-      el.onclick = null;
-    });
+    dom.deactivateAllInteractiveEls();
 
     // show the movementDescriptor in the output area
     let movementDescEl = document.createElement("p");
@@ -63,10 +58,7 @@ function travelDirClickCallback() {
     let count = 1;
 
     let interval = window.setInterval(function() {
-      let waitIndicator = document.createElement("p");
-      waitIndicator.classList.add("wait-indicator");
-      waitIndicator.innerText = ".";
-      dom.outputEl.appendChild(waitIndicator);
+      dom.appendWaitIndicatorToOutputEl();
 
       // wait until waitTime is up before actually completing this travel
       count++;

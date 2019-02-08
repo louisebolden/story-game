@@ -2,19 +2,14 @@
 
 // initialise Firebase to connect to our real-time database and store the most
 // frequently-used references to key database locations
-const firebase = require("./firebase.js");
-const firebaseAuth = firebase.firebaseAuth;
-const firebaseDb = firebase.firebaseDb;
-const firebaseLocationsRef = firebase.firebaseLocationsRef;
-const firebaseObjectsRef = firebase.firebaseObjectsRef;
+const { auth, db, dbLocationsRef, dbItemsRef } = require("./firebase.js");
 
-// global values for managing the player/game state and storing DOM element refs
-const globals = require("./globals.js").globals;
-const player = globals.player;
-const dom = globals.elements;
+// import this beast for managing the player/game state and updating the DOM
+const { player, dom } = require("./globals.js").globals;
 
-// models to apply consistent attributes and behaviours to game objects
-const TravelDirection = require("../models/travel-direction.js").travelDirection;
+// import models for applying consistent attributes and behaviours to game things
+const Item = require("../models/item.js");
+const TravelDirection = require("../models/travel-direction.js");
 
 // utilities
 const throttle = require('lodash.throttle');
@@ -42,10 +37,10 @@ if (window.MutationObserver) {
 
 // set an observer on the current user's auth status, to respond to any logins
 // or logouts
-firebaseAuth.onAuthStateChanged(function(user) {
+auth.onAuthStateChanged(function(user) {
   if (user) {
     console.log("user signed in:", user.uid);
-    player.ref = firebaseDb.ref("/players/" + user.uid);
+    player.ref = db.ref("/players/" + user.uid);
     player.uid = user.uid;
 
     // if a sign-in is observed, make sure we start observing this player's
@@ -64,7 +59,7 @@ firebaseAuth.onAuthStateChanged(function(user) {
     // if user not signed in, do an anonymous auth so they can still play the
     // game and optionally later do a non-anon auth to properly save their game
     console.log("attempting anon auth...");
-    firebaseAuth.signInAnonymously().catch(function(error) {
+    auth.signInAnonymously().catch(function(error) {
       console.log("anonymous sign-in error:", error);
     });
   }
@@ -74,48 +69,44 @@ firebaseAuth.onAuthStateChanged(function(user) {
 // general situation description text is updated if needed
 function setPlayerRefObserver(playerRef) {
   playerRef.on("value", function(snapshot) {
-    let playerData = snapshot.val();
-    console.log("fetched playerData:", playerData);
+    const playerData = snapshot.val();
+    console.log("fetched OR updated playerData:", playerData);
 
     if (playerData) {
-      let outputEl = dom.outputEl;
-
       // update the local information about any items the player is holding
-      firebaseObjectsRef.orderByChild("location").equalTo(player.uid).once("value", function(snapshot) {
-        let playerItems = snapshot.val();
+      dbItemsRef.orderByChild("location").equalTo(player.uid).once("value", function(snapshot) {
+        const playerItems = snapshot.val();
         if (playerItems) {
           // store an array of objects locally
           let itemsArray = [];
           for (let key in playerItems) {
             let item = playerItems[key];
-            itemsArray.push(
-              {
+            itemsArray.push({
                 description: item.description,
                 name: item.name,
                 size: item.size,
                 uid: key
-              }
-            );
+              });
           }
           player.items = itemsArray;
-          console.log("updated player.items:", player.items);
         }
 
         // check whether the player has moved to a new location
-        let newPlayerLoc = playerData.location;
+        const newPlayerLoc = playerData.location;
         if (player.location != newPlayerLoc) {
           // current location descriptor text does not match player's location, so
           // fetch updated location descriptor text to show instead
-          firebaseLocationsRef.child(newPlayerLoc).once("value").then((snapshot) => {
+          dbLocationsRef.child(newPlayerLoc).once("value").then((snapshot) => {
             let newLocData = snapshot.val();
             if (newLocData) {
-              // build the bulk of the description text for the player's current
-              // location and append it to the output
-              let outputTextNodes = buildOutputTextNodes(playerData, newLocData, player.items);
-              outputEl.appendChild(outputTextNodes);
-
-              // add the new travel direction options to the output, too
-              outputEl.appendChild(travelDirEls(newLocData.travelDirections));
+              // build the description text for the player's current location
+              // and append it to the output
+              dom.appendLocationDataToOutputEl({
+                playerData,
+                locationData: newLocData,
+                travelDirs: newLocData.travelDirections.map(TravelDirection),
+                items: player.items.map(Item)
+              });
 
               // update global player state with this new location
               player.location = newPlayerLoc;
@@ -124,10 +115,8 @@ function setPlayerRefObserver(playerRef) {
         }
       });
 
-      // hide the initial loading indicator, if it's showing
-      if (!dom.loadingIndicator.classList.contains("hide")) {
-        dom.loadingIndicator.classList.add("hide");
-      }
+      // hide the initial loading indicator
+      dom.loadingIndicator.classList.add("hide");
     }
   });
 }
@@ -144,7 +133,7 @@ function checkInitialPlayerData(playerRef) {
     }
 
     if (!playerData || !playerData.description) {
-      updatedData["description"] = "There's nothing unusual about your appearance today.";
+      updatedData["description"] = "There's nothing unusual about your appearance.";
     }
 
     if (!playerData || !playerData.location) {
@@ -161,83 +150,6 @@ function checkInitialPlayerData(playerRef) {
 
     playerRef.update(updatedData);
   });
-}
-
-function buildOutputTextNodes(playerData, locationData, inventoryItems) {
-  // add the new location descriptor text to the output, as well as the
-  // current time descriptor text and a note about what the player is
-  // holding (all wrapped in a set of <p></p> tags)
-  let locText = document.createTextNode(`You are ${playerData.action} in ${locationData.description}.`);
-  let timeText = document.createTextNode(` It is ${currentTimeStatement(playerData.ticksPassed)}.`);
-  let invText = document.createTextNode(inventoryString(inventoryItems));
-  let pEl = document.createElement("p");
-  pEl.appendChild(locText);
-  pEl.appendChild(timeText);
-  pEl.appendChild(invText);
-
-  return pEl;
-}
-
-// return a string to represent the player's inventory
-function inventoryString(items) {
-  if (items.length < 1) {
-    return "";
-  } else {
-    // TODO: should actually return a span containing interactive spans here,
-    // rather than simple text (and update the method above to expect a non-text
-    // node)
-
-    return " You are holding [items].";
-  }
-}
-
-// this function produces the interactive DOM elements that players can click on
-// to travel in a direction, from the array of travelDirections that we get from
-// their current location in the database
-function travelDirEls(travelDirs) {
-  let travelDirInstances = travelDirs.map(travelDir => TravelDirection(travelDir));
-  let travelDirWrap = document.createElement("p");
-  let startTextNode = document.createTextNode("There is ");
-  let endTextNode = document.createTextNode(".");
-
-  travelDirWrap.appendChild(startTextNode);
-
-  travelDirInstances.forEach((instance) => {
-    travelDirWrap.appendChild(instance.element);
-  });
-
-  travelDirWrap.appendChild(endTextNode);
-
-  return travelDirWrap;
-}
-
-const timeStatements = {
-  0: "after midnight",
-  1: "just before dawn",
-  2: "early morning",
-  3: "mid-morning",
-  4: "late morning",
-  5: "around midday",
-  6: "early afternoon",
-  7: "mid-afternoon",
-  8: "late afternoon",
-  9: "early evening",
-  10: "late evening",
-  11: "late at night"
-};
-
-// ticks represent minutes in this game, woohoo!
-// so find out how many hours of the current day have elapsed, and then choose
-// the closest timeStatement from the list above
-function currentTimeStatement(ticksPassed) {
-  let daysPassed = Math.floor(ticksPassed / 1440);
-  let hoursPassed = Math.floor((ticksPassed - (daysPassed * 1440)) / 60);
-
-  // for hoursPassed, we'll have a number between 0-23 so divide by two and
-  // round down to get closest time statement
-  let timeStatement = timeStatements[Math.floor(hoursPassed/2)];
-
-  return timeStatement;
 }
 
 // animated scroll function (thanks to https://gist.github.com/andjosh/6764939)
