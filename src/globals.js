@@ -16,7 +16,12 @@ const globals = {
       // add the new travel direction options to the output, too
       this.outputEl.appendChild(travelDirEls(travelDirs));
 
-      this.mostRecentLocationData = { playerData, locationData, travelDirs, items };
+      this.mostRecentLocationData = {
+        playerData,
+        locationData,
+        travelDirs: withClonedNodes(travelDirs),
+        items: withClonedNodes(items)
+      };
     },
     appendGoBackElToOutputEl: function(text) {
       const goBackEl = document.createElement("p");
@@ -24,7 +29,6 @@ const globals = {
       span.classList.add("interactive");
       span.innerText = text || "Look around.";
       span.onclick = event => {
-        console.log("clicked:", event.target);
         this.deactivateAllInteractiveEls();
         this.appendLocationDataToOutputEl(this.mostRecentLocationData);
       };
@@ -143,4 +147,17 @@ const timeStatements = {
   9: "early evening",
   10: "late evening",
   11: "late at night"
+};
+
+// when we store the most recent location data for re-rendering when the player
+// looks around repeatedly, we need to make sure that the elements we're storing
+// are fresh clones of the originals - i.e. with classnames and click handlers
+// still attached regardless of whether the originals become non-interactive at
+// any point during their lifetime
+const withClonedNodes = objects => {
+  return objects.map(object => {
+    const clonedElement = object.element.cloneNode(true); // deep clone pls
+    clonedElement.onclick = object.element.onclick;
+    return Object.assign({}, object, { element: clonedElement });
+  });
 };
