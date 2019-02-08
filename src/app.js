@@ -76,9 +76,9 @@ function setPlayerRefObserver(playerRef) {
       // update the local information about any items the player is holding
       dbItemsRef.orderByChild("location").equalTo(player.uid).once("value", function(snapshot) {
         const playerItems = snapshot.val();
+        const itemsArray = [];
         if (playerItems) {
           // store an array of objects locally
-          let itemsArray = [];
           for (let key in playerItems) {
             let item = playerItems[key];
             itemsArray.push({
@@ -88,8 +88,8 @@ function setPlayerRefObserver(playerRef) {
                 uid: key
               });
           }
-          player.items = itemsArray;
         }
+        player.items = itemsArray;
 
         // check whether the player has moved to a new location
         const newPlayerLoc = playerData.location;

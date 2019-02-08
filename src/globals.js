@@ -11,7 +11,7 @@ const globals = {
       this.outputEl.appendChild(locationDesc(playerData, locationData));
 
       // add the player's inventory items to the output
-      this.outputEl.appendChild(inventoryItemEls(items));
+      this.outputEl.appendChild(inventoryDesc(items));
 
       // add the new travel direction options to the output, too
       this.outputEl.appendChild(travelDirEls(travelDirs));
@@ -70,7 +70,7 @@ const locationDesc = (playerData, locationData) => {
 };
 
 // produce DOM elements that represent the player's inventory
-const inventoryItemEls = itemInstances => {
+const inventoryDesc = itemInstances => {
   if (itemInstances.length > 0) {
     const itemNode = document.createElement("p");
     const startTextNode = document.createTextNode("You are holding ");
@@ -95,7 +95,7 @@ const inventoryItemEls = itemInstances => {
     return itemNode;
   }
 
-  return "";
+  return document.createTextNode("");
 };
 
 // this function produces the interactive DOM elements that players can click on

@@ -135,9 +135,9 @@
 	      // update the local information about any items the player is holding
 	      dbItemsRef.orderByChild("location").equalTo(player.uid).once("value", function (snapshot) {
 	        var playerItems = snapshot.val();
+	        var itemsArray = [];
 	        if (playerItems) {
 	          // store an array of objects locally
-	          var itemsArray = [];
 	          for (var key in playerItems) {
 	            var item = playerItems[key];
 	            itemsArray.push({
@@ -147,8 +147,8 @@
 	              uid: key
 	            });
 	          }
-	          player.items = itemsArray;
 	        }
+	        player.items = itemsArray;
 
 	        // check whether the player has moved to a new location
 	        var newPlayerLoc = playerData.location;
@@ -294,7 +294,7 @@
 	      this.outputEl.appendChild(locationDesc(playerData, locationData));
 
 	      // add the player's inventory items to the output
-	      this.outputEl.appendChild(inventoryItemEls(items));
+	      this.outputEl.appendChild(inventoryDesc(items));
 
 	      // add the new travel direction options to the output, too
 	      this.outputEl.appendChild(travelDirEls(travelDirs));
@@ -351,7 +351,7 @@
 	};
 
 	// produce DOM elements that represent the player's inventory
-	var inventoryItemEls = function inventoryItemEls(itemInstances) {
+	var inventoryDesc = function inventoryDesc(itemInstances) {
 	  if (itemInstances.length > 0) {
 	    var _ret = function () {
 	      var itemNode = document.createElement("p");
@@ -382,7 +382,7 @@
 	    if ((typeof _ret === "undefined" ? "undefined" : _typeof(_ret)) === "object") return _ret.v;
 	  }
 
-	  return "";
+	  return document.createTextNode("");
 	};
 
 	// this function produces the interactive DOM elements that players can click on
