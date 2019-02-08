@@ -122,7 +122,6 @@ const travelDirEls = travelDirInstances => {
 const currentTimeStatement = ticksPassed => {
   let daysPassed = Math.floor(ticksPassed / 1440);
   let hoursPassed = Math.floor((ticksPassed - (daysPassed * 1440)) / 60);
-  console.log("hoursPassed:", hoursPassed);
 
   // for hoursPassed, we'll have a number between 0-23 so divide by two and
   // round down to get closest time statement

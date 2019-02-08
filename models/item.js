@@ -103,8 +103,8 @@ const filterPermittedActions = itemData => {
     const conditions = action.conditions;
 
     if (
-      (conditions.includes("on-player") && itemData.location === player.uid) ||
-      (conditions.includes("not-on-player") && itemData.location !== player.uid)
+      (conditions.includes("on-player") && itemData.location === "on-player") ||
+      (conditions.includes("not-on-player") && itemData.location !== "on-player")
     ) {
       permittedActions.push({
         description: action.description,

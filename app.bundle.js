@@ -133,7 +133,7 @@
 
 	    if (playerData) {
 	      // update the local information about any items the player is holding
-	      dbItemsRef.orderByChild("location").equalTo(player.uid).once("value", function (snapshot) {
+	      dbItemsRef.orderByChild("location").equalTo("on-player").once("value", function (snapshot) {
 	        var playerItems = snapshot.val();
 	        var itemsArray = [];
 	        if (playerItems) {
@@ -409,7 +409,6 @@
 	var currentTimeStatement = function currentTimeStatement(ticksPassed) {
 	  var daysPassed = Math.floor(ticksPassed / 1440);
 	  var hoursPassed = Math.floor((ticksPassed - daysPassed * 1440) / 60);
-	  console.log("hoursPassed:", hoursPassed);
 
 	  // for hoursPassed, we'll have a number between 0-23 so divide by two and
 	  // round down to get closest time statement
@@ -1088,7 +1087,7 @@
 	    var action = actions[key];
 	    var conditions = action.conditions;
 
-	    if (conditions.includes("on-player") && itemData.location === player.uid || conditions.includes("not-on-player") && itemData.location !== player.uid) {
+	    if (conditions.includes("on-player") && itemData.location === "on-player" || conditions.includes("not-on-player") && itemData.location !== "on-player") {
 	      permittedActions.push({
 	        description: action.description,
 	        done: action.return,

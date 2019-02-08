@@ -74,7 +74,7 @@ function setPlayerRefObserver(playerRef) {
 
     if (playerData) {
       // update the local information about any items the player is holding
-      dbItemsRef.orderByChild("location").equalTo(player.uid).once("value", function(snapshot) {
+      dbItemsRef.orderByChild("location").equalTo("on-player").once("value", function(snapshot) {
         const playerItems = snapshot.val();
         const itemsArray = [];
         if (playerItems) {
