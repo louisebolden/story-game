@@ -25,14 +25,18 @@ const globals = {
     },
     appendGoBackElToOutputEl: function(text) {
       const goBackEl = document.createElement("p");
+      goBackEl.appendChild(document.createTextNode("You could "));
+
       const span = document.createElement("span");
       span.classList.add("interactive");
-      span.innerText = text || "Look around.";
+      span.innerText = text || "look up";
       span.onclick = event => {
         this.deactivateAllInteractiveEls();
         this.appendLocationDataToOutputEl(this.mostRecentLocationData);
       };
+
       goBackEl.appendChild(span);
+      goBackEl.appendChild(document.createTextNode("."));
       this.outputEl.appendChild(goBackEl);
     },
     appendWaitIndicatorToOutputEl: function() {
@@ -52,7 +56,23 @@ const globals = {
     items: [],
     location: undefined,
     ref: undefined,
-    uid: undefined
+    uid: undefined,
+    checkRef: function() {
+      if (typeof this.ref === "object") { return true }
+      console.log("ERROR: player cannot act in the game without authentication");
+      return false;
+    },
+    increaseTicksPassedBy: function(additionalTicks) {
+      const player = this;
+      return player.ref.child("ticksPassed").once("value").then(snapshot => {
+        const currentTicks = parseInt(snapshot.val(), 10);
+        if (isNaN(currentTicks)) { return false }
+        player.ref.update({ticksPassed: currentTicks + additionalTicks});
+      });
+    },
+    setLocationTo: function(newLocation) {
+      this.ref.update({location: newLocation});
+    }
   }
 };
 

@@ -32,11 +32,7 @@ function item(item) {
 module.exports = item;
 
 const itemClick = event => {
-  const playerRef = player.ref;
-  if (!playerRef) {
-    console.log("ERROR: player cannot act in the game without authentication");
-    return false;
-  }
+  if (!player.checkRef()) { return false }
 
   // all existing interactive elements should stop being interactive once
   // one is clicked - those choices are no longer available to the player
@@ -54,11 +50,14 @@ const itemClick = event => {
     tickCount++;
 
     if (tickCount === 1) {
+      // after a moment, show the item's full description
       const itemDescriptionEl = document.createElement("p");
       itemDescriptionEl.innerText = item.dataset.description;
       dom.outputEl.appendChild(itemDescriptionEl);
+    }
 
-      // can also see the item's actions (if any)
+    if (tickCount === 2) {
+      // after another moment, can see the item's actions (if any)
       dbItemsRef.child(item.dataset.uid).once("value", snapshot => {
         const itemData = snapshot.val();
         if (itemData && itemData.actions) {
@@ -86,10 +85,7 @@ const itemClick = event => {
         dom.appendGoBackElToOutputEl();
       });
 
-      playerRef.child("ticksPassed").once("value").then((snapshot) => {
-        const currentTicks = parseInt(snapshot.val(), 10) || 0;
-        playerRef.update({ticksPassed: currentTicks + 1});
-      });
+      player.increaseTicksPassedBy(1);
     }
   }, 1000);
 };
@@ -109,7 +105,9 @@ const filterPermittedActions = itemData => {
       permittedActions.push({
         description: action.description,
         done: action.return,
+        itemName: itemData.name,
         name: key,
+        ticksRequired: action.ticksRequired
       });
     }
   }
@@ -120,11 +118,38 @@ const filterPermittedActions = itemData => {
 const createItemActionEl = action => {
   const span = document.createElement("span");
   span.classList.add("interactive");
-  span.dataset.description = action.description;
-  span.dataset.done = action.done;
   span.innerText = action.name;
   span.onclick = event => {
-    console.log("clicked:", event.target);
+    if (!player.checkRef()) { return false }
+
+    const ticksRequired = parseInt(action.ticksRequired, 10);
+    let tickCount = 0;
+
+    // show statement of action taken immediately
+    const actionStatement = document.createElement("p");
+    actionStatement.innerText = `You ${action.name} the ${action.itemName}.`;
+    dom.outputEl.appendChild(actionStatement);
+
+    // start interval timer according to ticksRequired
+    const interval = window.setInterval(() => {
+      dom.appendWaitIndicatorToOutputEl();
+      tickCount++;
+
+      // after 1 tick, show description/result of action
+      if (tickCount === 1) {
+        const actionDescription = document.createElement("p");
+        actionDescription.innerText = action.description;
+        dom.outputEl.appendChild(actionDescription);
+
+        // and the goBack action also
+        dom.appendGoBackElToOutputEl(`${action.done} the ${action.itemName}`);
+      }
+
+      if (tickCount === ticksRequired) {
+        player.increaseTicksPassedBy(ticksRequired);
+        window.clearInterval(interval);
+      }
+    }, 1000);
   };
   return span;
 };

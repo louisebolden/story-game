@@ -153,8 +153,11 @@
 	        // check whether the player has moved to a new location
 	        var newPlayerLoc = playerData.location;
 	        if (player.location != newPlayerLoc) {
-	          // current location descriptor text does not match player's location, so
-	          // fetch updated location descriptor text to show instead
+	          // immediately update global player state with this new location
+	          player.location = newPlayerLoc;
+
+	          // current location descriptor text does not match player's location,
+	          // so fetch updated location descriptor text to show instead
 	          dbLocationsRef.child(newPlayerLoc).once("value").then(function (snapshot) {
 	            var newLocData = snapshot.val();
 	            if (newLocData) {
@@ -166,9 +169,6 @@
 	                travelDirs: newLocData.travelDirections.map(TravelDirection),
 	                items: player.items.map(Item)
 	              });
-
-	              // update global player state with this new location
-	              player.location = newPlayerLoc;
 	            }
 	          });
 	        }
@@ -310,14 +310,18 @@
 	      var _this = this;
 
 	      var goBackEl = document.createElement("p");
+	      goBackEl.appendChild(document.createTextNode("You could "));
+
 	      var span = document.createElement("span");
 	      span.classList.add("interactive");
-	      span.innerText = text || "Look around.";
+	      span.innerText = text || "look up";
 	      span.onclick = function (event) {
 	        _this.deactivateAllInteractiveEls();
 	        _this.appendLocationDataToOutputEl(_this.mostRecentLocationData);
 	      };
+
 	      goBackEl.appendChild(span);
+	      goBackEl.appendChild(document.createTextNode("."));
 	      this.outputEl.appendChild(goBackEl);
 	    },
 	    appendWaitIndicatorToOutputEl: function appendWaitIndicatorToOutputEl() {
@@ -337,7 +341,27 @@
 	    items: [],
 	    location: undefined,
 	    ref: undefined,
-	    uid: undefined
+	    uid: undefined,
+	    checkRef: function checkRef() {
+	      if (_typeof(this.ref) === "object") {
+	        return true;
+	      }
+	      console.log("ERROR: player cannot act in the game without authentication");
+	      return false;
+	    },
+	    increaseTicksPassedBy: function increaseTicksPassedBy(additionalTicks) {
+	      var player = this;
+	      return player.ref.child("ticksPassed").once("value").then(function (snapshot) {
+	        var currentTicks = parseInt(snapshot.val(), 10);
+	        if (isNaN(currentTicks)) {
+	          return false;
+	        }
+	        player.ref.update({ ticksPassed: currentTicks + additionalTicks });
+	      });
+	    },
+	    setLocationTo: function setLocationTo(newLocation) {
+	      this.ref.update({ location: newLocation });
+	    }
 	  }
 	};
 
@@ -494,14 +518,12 @@
 	// the player to move in that direction, updating their position and the time
 	// that has passed
 	function travelDirClick() {
-	  var travelDirection = this.dataset;
-	  var newLoc = travelDirection.target;
-	  var playerRef = player.ref;
-
-	  if (!playerRef) {
-	    console.log("ERROR: player cannot act in the game without authentication");
+	  if (!player.checkRef()) {
 	    return false;
 	  }
+
+	  var travelDirection = this.dataset;
+	  var newLoc = travelDirection.target;
 
 	  if (newLoc) {
 	    (function () {
@@ -527,12 +549,14 @@
 	          // travel takes time, so update the player's ticksPassed value with
 	          // the amount of ticks taken by this action, as well as updating the
 	          // player's location value to match their arrival destination
-	          playerRef.child("ticksPassed").once("value").then(function (snapshot) {
-	            var currentTicks = parseInt(snapshot.val(), 10) || 0;
-	            var newTotalTicks = currentTicks + waitTime;
+	          player.increaseTicksPassedBy(waitTime);
+	          player.setLocationTo(newLoc);
+	          // playerRef.child("ticksPassed").once("value").then((snapshot) => {
+	          //   let currentTicks = parseInt(snapshot.val(), 10) || 0;
+	          //   let newTotalTicks = currentTicks + waitTime;
 
-	            playerRef.update({ location: newLoc, ticksPassed: newTotalTicks });
-	          });
+	          //   playerRef.update({location: newLoc, ticksPassed: newTotalTicks});
+	          // });
 
 	          window.clearInterval(interval);
 	        }
@@ -1032,9 +1056,7 @@
 	module.exports = item;
 
 	var itemClick = function itemClick(event) {
-	  var playerRef = player.ref;
-	  if (!playerRef) {
-	    console.log("ERROR: player cannot act in the game without authentication");
+	  if (!player.checkRef()) {
 	    return false;
 	  }
 
@@ -1054,11 +1076,14 @@
 	    tickCount++;
 
 	    if (tickCount === 1) {
+	      // after a moment, show the item's full description
 	      var itemDescriptionEl = document.createElement("p");
 	      itemDescriptionEl.innerText = item.dataset.description;
 	      dom.outputEl.appendChild(itemDescriptionEl);
+	    }
 
-	      // can also see the item's actions (if any)
+	    if (tickCount === 2) {
+	      // after another moment, can see the item's actions (if any)
 	      dbItemsRef.child(item.dataset.uid).once("value", function (snapshot) {
 	        var itemData = snapshot.val();
 	        if (itemData && itemData.actions) {
@@ -1088,10 +1113,7 @@
 	        dom.appendGoBackElToOutputEl();
 	      });
 
-	      playerRef.child("ticksPassed").once("value").then(function (snapshot) {
-	        var currentTicks = parseInt(snapshot.val(), 10) || 0;
-	        playerRef.update({ ticksPassed: currentTicks + 1 });
-	      });
+	      player.increaseTicksPassedBy(1);
 	    }
 	  }, 1000);
 	};
@@ -1108,7 +1130,9 @@
 	      permittedActions.push({
 	        description: action.description,
 	        done: action.return,
-	        name: key
+	        itemName: itemData.name,
+	        name: key,
+	        ticksRequired: action.ticksRequired
 	      });
 	    }
 	  }
@@ -1119,11 +1143,40 @@
 	var createItemActionEl = function createItemActionEl(action) {
 	  var span = document.createElement("span");
 	  span.classList.add("interactive");
-	  span.dataset.description = action.description;
-	  span.dataset.done = action.done;
 	  span.innerText = action.name;
 	  span.onclick = function (event) {
-	    console.log("clicked:", event.target);
+	    if (!player.checkRef()) {
+	      return false;
+	    }
+
+	    var ticksRequired = parseInt(action.ticksRequired, 10);
+	    var tickCount = 0;
+
+	    // show statement of action taken immediately
+	    var actionStatement = document.createElement("p");
+	    actionStatement.innerText = "You " + action.name + " the " + action.itemName + ".";
+	    dom.outputEl.appendChild(actionStatement);
+
+	    // start interval timer according to ticksRequired
+	    var interval = window.setInterval(function () {
+	      dom.appendWaitIndicatorToOutputEl();
+	      tickCount++;
+
+	      // after 1 tick, show description/result of action
+	      if (tickCount === 1) {
+	        var actionDescription = document.createElement("p");
+	        actionDescription.innerText = action.description;
+	        dom.outputEl.appendChild(actionDescription);
+
+	        // and the goBack action also
+	        dom.appendGoBackElToOutputEl(action.done + " the " + action.itemName);
+	      }
+
+	      if (tickCount === ticksRequired) {
+	        player.increaseTicksPassedBy(ticksRequired);
+	        window.clearInterval(interval);
+	      }
+	    }, 1000);
 	  };
 	  return span;
 	};

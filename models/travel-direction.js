@@ -34,14 +34,10 @@ module.exports = travelDirection;
 // the player to move in that direction, updating their position and the time
 // that has passed
 function travelDirClick() {
-  let travelDirection = this.dataset;
-  let newLoc = travelDirection.target;
-  let playerRef = player.ref;
+  if (!player.checkRef()) { return false }
 
-  if (!playerRef) {
-    console.log("ERROR: player cannot act in the game without authentication");
-    return false;
-  }
+  const travelDirection = this.dataset;
+  const newLoc = travelDirection.target;
 
   if (newLoc) {
     // all existing interactive elements should stop being interactive once
@@ -49,12 +45,12 @@ function travelDirClick() {
     dom.deactivateAllInteractiveEls();
 
     // show the movementDescriptor in the output area
-    let movementDescEl = document.createElement("p");
+    const movementDescEl = document.createElement("p");
     movementDescEl.innerText = travelDirection.descriptor;
     dom.outputEl.appendChild(movementDescEl);
 
     // display a wait indicator to show the time taken for this travel
-    let waitTime = parseInt(travelDirection.waitTime, 10);
+    const waitTime = parseInt(travelDirection.waitTime, 10);
     let count = 1;
 
     let interval = window.setInterval(function() {
@@ -66,12 +62,14 @@ function travelDirClick() {
         // travel takes time, so update the player's ticksPassed value with
         // the amount of ticks taken by this action, as well as updating the
         // player's location value to match their arrival destination
-        playerRef.child("ticksPassed").once("value").then((snapshot) => {
-          let currentTicks = parseInt(snapshot.val(), 10) || 0;
-          let newTotalTicks = currentTicks + waitTime;
+        player.increaseTicksPassedBy(waitTime);
+        player.setLocationTo(newLoc);
+        // playerRef.child("ticksPassed").once("value").then((snapshot) => {
+        //   let currentTicks = parseInt(snapshot.val(), 10) || 0;
+        //   let newTotalTicks = currentTicks + waitTime;
 
-          playerRef.update({location: newLoc, ticksPassed: newTotalTicks});
-        });
+        //   playerRef.update({location: newLoc, ticksPassed: newTotalTicks});
+        // });
 
         window.clearInterval(interval);
       }

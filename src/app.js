@@ -94,9 +94,12 @@ function setPlayerRefObserver(playerRef) {
         // check whether the player has moved to a new location
         const newPlayerLoc = playerData.location;
         if (player.location != newPlayerLoc) {
-          // current location descriptor text does not match player's location, so
-          // fetch updated location descriptor text to show instead
-          dbLocationsRef.child(newPlayerLoc).once("value").then((snapshot) => {
+          // immediately update global player state with this new location
+          player.location = newPlayerLoc;
+
+          // current location descriptor text does not match player's location,
+          // so fetch updated location descriptor text to show instead
+          dbLocationsRef.child(newPlayerLoc).once("value").then(snapshot => {
             let newLocData = snapshot.val();
             if (newLocData) {
               // build the description text for the player's current location
@@ -107,9 +110,6 @@ function setPlayerRefObserver(playerRef) {
                 travelDirs: newLocData.travelDirections.map(TravelDirection),
                 items: player.items.map(Item)
               });
-
-              // update global player state with this new location
-              player.location = newPlayerLoc;
             }
           });
         }
