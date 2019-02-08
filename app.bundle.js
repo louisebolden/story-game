@@ -108,6 +108,9 @@
 
 	    // make sure the player has some initial player data set, if they are new
 	    checkInitialPlayerData(player.ref);
+
+	    // clear the output area ready for fresh new text <3
+	    dom.outputEl.innerHTML = "";
 	  } else {
 	    console.log("user signed out");
 	    dom.outputEl.innerHTML = "<p>[Logged out.]</p>";
@@ -299,6 +302,11 @@
 	      // add the new travel direction options to the output, too
 	      this.outputEl.appendChild(travelDirEls(travelDirs));
 
+	      // add a dot of breathing space
+	      this.appendWaitIndicatorToOutputEl();
+
+	      // store a snapshot of current location data ready for any re-renders
+	      // when the player looks around again
 	      this.mostRecentLocationData = {
 	        playerData: playerData,
 	        locationData: locationData,
@@ -1111,6 +1119,9 @@
 
 	        // show the 'Done' interactable once we've printed everything else
 	        dom.appendGoBackElToOutputEl();
+
+	        // add a dot of breathing space
+	        dom.appendWaitIndicatorToOutputEl();
 	      });
 
 	      player.increaseTicksPassedBy(1);

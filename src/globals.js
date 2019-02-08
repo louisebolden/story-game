@@ -16,6 +16,11 @@ const globals = {
       // add the new travel direction options to the output, too
       this.outputEl.appendChild(travelDirEls(travelDirs));
 
+      // add a dot of breathing space
+      this.appendWaitIndicatorToOutputEl();
+
+      // store a snapshot of current location data ready for any re-renders
+      // when the player looks around again
       this.mostRecentLocationData = {
         playerData,
         locationData,

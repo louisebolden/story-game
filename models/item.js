@@ -83,6 +83,9 @@ const itemClick = event => {
 
         // show the 'Done' interactable once we've printed everything else
         dom.appendGoBackElToOutputEl();
+
+        // add a dot of breathing space
+        dom.appendWaitIndicatorToOutputEl();
       });
 
       player.increaseTicksPassedBy(1);

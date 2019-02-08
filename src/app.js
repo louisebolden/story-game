@@ -49,6 +49,9 @@ auth.onAuthStateChanged(function(user) {
 
     // make sure the player has some initial player data set, if they are new
     checkInitialPlayerData(player.ref);
+
+    // clear the output area ready for fresh new text <3
+    dom.outputEl.innerHTML = "";
   } else {
     console.log("user signed out");
     dom.outputEl.innerHTML = "<p>[Logged out.]</p>";
