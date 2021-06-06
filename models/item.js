@@ -13,7 +13,7 @@ const { dbItemsRef } = require("../src/firebase.js");
 
 function item(item) {
   let itemObj = Object.assign({}, item);
-  let element = document.createElement('span');
+  let element = document.createElement("span");
 
   element.classList.add("interactive");
   element.dataset.description = item.description;
@@ -24,15 +24,17 @@ function item(item) {
   // when a player interacts with an object, its description and actions show
   element.onclick = itemClick;
 
-  itemObj['element'] = element;
+  itemObj["element"] = element;
 
   return itemObj;
 }
 
 module.exports = item;
 
-const itemClick = event => {
-  if (!player.checkRef()) { return false }
+const itemClick = (event) => {
+  if (!player.checkRef()) {
+    return false;
+  }
 
   // all existing interactive elements should stop being interactive once
   // one is clicked - those choices are no longer available to the player
@@ -58,23 +60,32 @@ const itemClick = event => {
 
     if (tickCount === 2) {
       // after another moment, can see the item's actions (if any)
-      dbItemsRef.child(item.dataset.uid).once("value", snapshot => {
+      dbItemsRef.child(item.dataset.uid).once("value", (snapshot) => {
         const itemData = snapshot.val();
+        console.log("itemData:", itemData);
         if (itemData && itemData.actions) {
-          const permittedActionEls = filterPermittedActions(itemData).map(createItemActionEl);
+          const permittedActionEls =
+            filterPermittedActions(itemData).map(createItemActionEl);
           const actionsNode = document.createElement("p");
+
           actionsNode.appendChild(document.createTextNode("You could "));
+
           permittedActionEls.forEach((el, index) => {
             actionsNode.appendChild(el);
-            actionsNode.appendChild(document.createTextNode(` the ${itemData.name}`));
+
+            actionsNode.appendChild(
+              document.createTextNode(` the ${itemData.name}`)
+            );
+
             if (permittedActionEls.length > 1) {
-            if (index === permittedActionEls.length - 2) {
-              actionsNode.appendChild(document.createTextNode(" or "));
-            } else if (index < permittedActionEls.length - 2) {
-              actionsNode.appendChild(document.createTextNode(", "));
+              if (index === permittedActionEls.length - 2) {
+                actionsNode.appendChild(document.createTextNode(" or "));
+              } else if (index < permittedActionEls.length - 2) {
+                actionsNode.appendChild(document.createTextNode(", "));
+              }
             }
-          }
           });
+
           actionsNode.appendChild(document.createTextNode("."));
           dom.outputEl.appendChild(actionsNode);
         }
@@ -93,7 +104,7 @@ const itemClick = event => {
   }, 1000);
 };
 
-const filterPermittedActions = itemData => {
+const filterPermittedActions = (itemData) => {
   const actions = itemData.actions;
   const permittedActions = [];
 
@@ -103,14 +114,15 @@ const filterPermittedActions = itemData => {
 
     if (
       (conditions.includes("on-player") && itemData.location === "on-player") ||
-      (conditions.includes("not-on-player") && itemData.location !== "on-player")
+      (conditions.includes("not-on-player") &&
+        itemData.location !== "on-player")
     ) {
       permittedActions.push({
         description: action.description,
         done: action.return,
         itemName: itemData.name,
         name: key,
-        ticksRequired: action.ticksRequired
+        ticksRequired: action.ticksRequired,
       });
     }
   }
@@ -118,12 +130,14 @@ const filterPermittedActions = itemData => {
   return permittedActions;
 };
 
-const createItemActionEl = action => {
+const createItemActionEl = (action) => {
   const span = document.createElement("span");
   span.classList.add("interactive");
   span.innerText = action.name;
-  span.onclick = event => {
-    if (!player.checkRef()) { return false }
+  span.onclick = (event) => {
+    if (!player.checkRef()) {
+      return false;
+    }
 
     const ticksRequired = parseInt(action.ticksRequired, 10);
     let tickCount = 0;

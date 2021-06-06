@@ -42,7 +42,7 @@
 /************************************************************************/
 /******/ ([
 /* 0 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
 
 	"use strict";
 
@@ -65,33 +65,31 @@
 	// import models for applying consistent attributes and behaviours to game things
 
 
-	var Item = __webpack_require__(6);
-	var TravelDirection = __webpack_require__(3);
+	var Item = __webpack_require__(3);
+	var TravelDirection = __webpack_require__(4);
 
 	// utilities
-	var throttle = __webpack_require__(4);
+	var throttle = __webpack_require__(5);
 
 	// observe the outputEl and, if its contents start to expand further than its
 	// height then scroll its overflow-scroll-hidden contents into view
 	if (window.MutationObserver) {
-	  (function () {
-	    var outputEl = dom.outputEl;
-	    // prepare a throttled version of the scrollTo animation function that won't
-	    // be called more than once per second, to avoid janky scrolling
-	    var throttledScrollTo = throttle(function () {
-	      scrollTo(outputEl, outputEl.scrollHeight - outputEl.clientHeight, 450);
-	    }, 1000);
+	  var outputEl = dom.outputEl;
+	  // prepare a throttled version of the scrollTo animation function that won't
+	  // be called more than once per second, to avoid janky scrolling
+	  var throttledScrollTo = throttle(function () {
+	    scrollTo(outputEl, outputEl.scrollHeight - outputEl.clientHeight, 450);
+	  }, 1000);
 
-	    // call this throttled scrollTo animation function when the outputEl's content
-	    // is longer/higher than its max-height
-	    var observer = new window.MutationObserver(function () {
-	      if (outputEl.scrollHeight > outputEl.clientHeight) {
-	        throttledScrollTo();
-	      }
-	    });
+	  // call this throttled scrollTo animation function when the outputEl's content
+	  // is longer/higher than its max-height
+	  var observer = new window.MutationObserver(function () {
+	    if (outputEl.scrollHeight > outputEl.clientHeight) {
+	      throttledScrollTo();
+	    }
+	  });
 
-	    observer.observe(outputEl, { childList: true });
-	  })();
+	  observer.observe(outputEl, { childList: true });
 	}
 
 	// set an observer on the current user's auth status, to respond to any logins
@@ -188,7 +186,7 @@
 	function checkInitialPlayerData(playerRef) {
 	  playerRef.once("value").then(function (snapshot) {
 	    var playerData = snapshot.val();
-	    var updatedData = { "connected": true };
+	    var updatedData = { connected: true };
 
 	    if (!playerData || !playerData.action) {
 	      updatedData["action"] = "standing";
@@ -244,9 +242,9 @@
 	  return -c / 2 * (t * (t - 2) - 1) + b;
 	};
 
-/***/ },
+/***/ }),
 /* 1 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	"use strict";
 
@@ -271,9 +269,9 @@
 	module.exports.dbLocationsRef = database.ref('/locations');
 	module.exports.dbItemsRef = database.ref('/objects');
 
-/***/ },
+/***/ }),
 /* 2 */
-/***/ function(module, exports) {
+/***/ (function(module, exports) {
 
 	"use strict";
 
@@ -389,33 +387,27 @@
 	// produce DOM elements that represent the player's inventory
 	var inventoryDesc = function inventoryDesc(itemInstances) {
 	  if (itemInstances.length > 0) {
-	    var _ret = function () {
-	      var itemNode = document.createElement("p");
-	      var startTextNode = document.createTextNode("You are holding ");
-	      var endTextNode = document.createTextNode(".");
+	    var itemNode = document.createElement("p");
+	    var startTextNode = document.createTextNode("You are holding ");
+	    var endTextNode = document.createTextNode(".");
 
-	      itemNode.appendChild(startTextNode);
+	    itemNode.appendChild(startTextNode);
 
-	      itemInstances.forEach(function (instance, index) {
-	        itemNode.appendChild(document.createTextNode("a "));
-	        itemNode.appendChild(instance.element);
-	        if (itemInstances.length > 1) {
-	          if (index === itemInstances.length - 2) {
-	            itemNode.appendChild(document.createTextNode(" and "));
-	          } else if (index < itemInstances.length - 2) {
-	            itemNode.appendChild(document.createTextNode(", "));
-	          }
+	    itemInstances.forEach(function (instance, index) {
+	      itemNode.appendChild(document.createTextNode("a "));
+	      itemNode.appendChild(instance.element);
+	      if (itemInstances.length > 1) {
+	        if (index === itemInstances.length - 2) {
+	          itemNode.appendChild(document.createTextNode(" and "));
+	        } else if (index < itemInstances.length - 2) {
+	          itemNode.appendChild(document.createTextNode(", "));
 	        }
-	      });
+	      }
+	    });
 
-	      itemNode.appendChild(endTextNode);
+	    itemNode.appendChild(endTextNode);
 
-	      return {
-	        v: itemNode
-	      };
-	    }();
-
-	    if ((typeof _ret === "undefined" ? "undefined" : _typeof(_ret)) === "object") return _ret.v;
+	    return itemNode;
 	  }
 
 	  return document.createTextNode("");
@@ -481,9 +473,185 @@
 	  });
 	};
 
-/***/ },
+/***/ }),
 /* 3 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __webpack_require__) {
+
+	"use strict";
+
+	// global values for managing player/game state and storing DOM element refs
+
+	var _require$globals = __webpack_require__(2).globals,
+	    dom = _require$globals.dom,
+	    player = _require$globals.player;
+
+	// we'll be getting the item's actions from firebase on click
+
+
+	var _require = __webpack_require__(1),
+	    dbItemsRef = _require.dbItemsRef;
+
+	// this model wraps item data that has been fetched from the database in an
+	// object that has additional properties and methods, notably a DOM element that
+	// can be used to display a representation of the item in the view's output
+	// area so that the player can click and interact with it
+
+	function item(item) {
+	  var itemObj = Object.assign({}, item);
+	  var element = document.createElement("span");
+
+	  element.classList.add("interactive");
+	  element.dataset.description = item.description;
+	  element.dataset.name = item.name;
+	  element.dataset.uid = item.uid;
+	  element.innerText = item.name;
+
+	  // when a player interacts with an object, its description and actions show
+	  element.onclick = itemClick;
+
+	  itemObj["element"] = element;
+
+	  return itemObj;
+	}
+
+	module.exports = item;
+
+	var itemClick = function itemClick(event) {
+	  if (!player.checkRef()) {
+	    return false;
+	  }
+
+	  // all existing interactive elements should stop being interactive once
+	  // one is clicked - those choices are no longer available to the player
+	  dom.deactivateAllInteractiveEls();
+
+	  var item = event.target;
+	  var actionEl = document.createElement("p");
+	  actionEl.innerText = "You look at the " + item.dataset.name + ".";
+	  dom.outputEl.appendChild(actionEl);
+
+	  // a tick or two passes during this inspection of the item
+	  var tickCount = 0;
+	  var interval = window.setInterval(function () {
+	    dom.appendWaitIndicatorToOutputEl();
+	    tickCount++;
+
+	    if (tickCount === 1) {
+	      // after a moment, show the item's full description
+	      var itemDescriptionEl = document.createElement("p");
+	      itemDescriptionEl.innerText = item.dataset.description;
+	      dom.outputEl.appendChild(itemDescriptionEl);
+	    }
+
+	    if (tickCount === 2) {
+	      // after another moment, can see the item's actions (if any)
+	      dbItemsRef.child(item.dataset.uid).once("value", function (snapshot) {
+	        var itemData = snapshot.val();
+	        console.log("itemData:", itemData);
+	        if (itemData && itemData.actions) {
+	          var permittedActionEls = filterPermittedActions(itemData).map(createItemActionEl);
+	          var actionsNode = document.createElement("p");
+
+	          actionsNode.appendChild(document.createTextNode("You could "));
+
+	          permittedActionEls.forEach(function (el, index) {
+	            actionsNode.appendChild(el);
+
+	            actionsNode.appendChild(document.createTextNode(" the " + itemData.name));
+
+	            if (permittedActionEls.length > 1) {
+	              if (index === permittedActionEls.length - 2) {
+	                actionsNode.appendChild(document.createTextNode(" or "));
+	              } else if (index < permittedActionEls.length - 2) {
+	                actionsNode.appendChild(document.createTextNode(", "));
+	              }
+	            }
+	          });
+
+	          actionsNode.appendChild(document.createTextNode("."));
+	          dom.outputEl.appendChild(actionsNode);
+	        }
+
+	        window.clearInterval(interval);
+
+	        // show the 'Done' interactable once we've printed everything else
+	        dom.appendGoBackElToOutputEl();
+
+	        // add a dot of breathing space
+	        dom.appendWaitIndicatorToOutputEl();
+	      });
+
+	      player.increaseTicksPassedBy(1);
+	    }
+	  }, 1000);
+	};
+
+	var filterPermittedActions = function filterPermittedActions(itemData) {
+	  var actions = itemData.actions;
+	  var permittedActions = [];
+
+	  for (var key in actions) {
+	    var action = actions[key];
+	    var conditions = action.conditions;
+
+	    if (conditions.includes("on-player") && itemData.location === "on-player" || conditions.includes("not-on-player") && itemData.location !== "on-player") {
+	      permittedActions.push({
+	        description: action.description,
+	        done: action.return,
+	        itemName: itemData.name,
+	        name: key,
+	        ticksRequired: action.ticksRequired
+	      });
+	    }
+	  }
+
+	  return permittedActions;
+	};
+
+	var createItemActionEl = function createItemActionEl(action) {
+	  var span = document.createElement("span");
+	  span.classList.add("interactive");
+	  span.innerText = action.name;
+	  span.onclick = function (event) {
+	    if (!player.checkRef()) {
+	      return false;
+	    }
+
+	    var ticksRequired = parseInt(action.ticksRequired, 10);
+	    var tickCount = 0;
+
+	    // show statement of action taken immediately
+	    var actionStatement = document.createElement("p");
+	    actionStatement.innerText = "You " + action.name + " the " + action.itemName + ".";
+	    dom.outputEl.appendChild(actionStatement);
+
+	    // start interval timer according to ticksRequired
+	    var interval = window.setInterval(function () {
+	      dom.appendWaitIndicatorToOutputEl();
+	      tickCount++;
+
+	      // after 1 tick, show description/result of action
+	      if (tickCount === 1) {
+	        var actionDescription = document.createElement("p");
+	        actionDescription.innerText = action.description;
+	        dom.outputEl.appendChild(actionDescription);
+
+	        // and the goBack action also
+	        dom.appendGoBackElToOutputEl(action.done + " the " + action.itemName);
+	      }
+
+	      if (tickCount === ticksRequired) {
+	        player.increaseTicksPassedBy(ticksRequired);
+	        window.clearInterval(interval);
+	      }
+	    }, 1000);
+	  };
+	  return span;
+	};
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
 
 	"use strict";
 
@@ -534,48 +702,46 @@
 	  var newLoc = travelDirection.target;
 
 	  if (newLoc) {
-	    (function () {
-	      // all existing interactive elements should stop being interactive once
-	      // one is clicked - those choices are no longer available to the player
-	      dom.deactivateAllInteractiveEls();
+	    // all existing interactive elements should stop being interactive once
+	    // one is clicked - those choices are no longer available to the player
+	    dom.deactivateAllInteractiveEls();
 
-	      // show the movementDescriptor in the output area
-	      var movementDescEl = document.createElement("p");
-	      movementDescEl.innerText = travelDirection.descriptor;
-	      dom.outputEl.appendChild(movementDescEl);
+	    // show the movementDescriptor in the output area
+	    var movementDescEl = document.createElement("p");
+	    movementDescEl.innerText = travelDirection.descriptor;
+	    dom.outputEl.appendChild(movementDescEl);
 
-	      // display a wait indicator to show the time taken for this travel
-	      var waitTime = parseInt(travelDirection.waitTime, 10);
-	      var count = 1;
+	    // display a wait indicator to show the time taken for this travel
+	    var waitTime = parseInt(travelDirection.waitTime, 10);
+	    var count = 1;
 
-	      var interval = window.setInterval(function () {
-	        dom.appendWaitIndicatorToOutputEl();
+	    var interval = window.setInterval(function () {
+	      dom.appendWaitIndicatorToOutputEl();
 
-	        // wait until waitTime is up before actually completing this travel
-	        count++;
-	        if (count >= waitTime) {
-	          // travel takes time, so update the player's ticksPassed value with
-	          // the amount of ticks taken by this action, as well as updating the
-	          // player's location value to match their arrival destination
-	          player.increaseTicksPassedBy(waitTime);
-	          player.setLocationTo(newLoc);
-	          // playerRef.child("ticksPassed").once("value").then((snapshot) => {
-	          //   let currentTicks = parseInt(snapshot.val(), 10) || 0;
-	          //   let newTotalTicks = currentTicks + waitTime;
+	      // wait until waitTime is up before actually completing this travel
+	      count++;
+	      if (count >= waitTime) {
+	        // travel takes time, so update the player's ticksPassed value with
+	        // the amount of ticks taken by this action, as well as updating the
+	        // player's location value to match their arrival destination
+	        player.increaseTicksPassedBy(waitTime);
+	        player.setLocationTo(newLoc);
+	        // playerRef.child("ticksPassed").once("value").then((snapshot) => {
+	        //   let currentTicks = parseInt(snapshot.val(), 10) || 0;
+	        //   let newTotalTicks = currentTicks + waitTime;
 
-	          //   playerRef.update({location: newLoc, ticksPassed: newTotalTicks});
-	          // });
+	        //   playerRef.update({location: newLoc, ticksPassed: newTotalTicks});
+	        // });
 
-	          window.clearInterval(interval);
-	        }
-	      }, 1000);
-	    })();
+	        window.clearInterval(interval);
+	      }
+	    }, 1000);
 	  }
 	}
 
-/***/ },
-/* 4 */
-/***/ function(module, exports) {
+/***/ }),
+/* 5 */
+/***/ (function(module, exports) {
 
 	/* WEBPACK VAR INJECTION */(function(global) {/**
 	 * lodash (Custom Build) <https://lodash.com/>
@@ -1019,178 +1185,5 @@
 
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
-/***/ },
-/* 5 */,
-/* 6 */
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-
-	// global values for managing player/game state and storing DOM element refs
-
-	var _require$globals = __webpack_require__(2).globals,
-	    dom = _require$globals.dom,
-	    player = _require$globals.player;
-
-	// we'll be getting the item's actions from firebase on click
-
-
-	var _require = __webpack_require__(1),
-	    dbItemsRef = _require.dbItemsRef;
-
-	// this model wraps item data that has been fetched from the database in an
-	// object that has additional properties and methods, notably a DOM element that
-	// can be used to display a representation of the item in the view's output
-	// area so that the player can click and interact with it
-
-	function item(item) {
-	  var itemObj = Object.assign({}, item);
-	  var element = document.createElement('span');
-
-	  element.classList.add("interactive");
-	  element.dataset.description = item.description;
-	  element.dataset.name = item.name;
-	  element.dataset.uid = item.uid;
-	  element.innerText = item.name;
-
-	  // when a player interacts with an object, its description and actions show
-	  element.onclick = itemClick;
-
-	  itemObj['element'] = element;
-
-	  return itemObj;
-	}
-
-	module.exports = item;
-
-	var itemClick = function itemClick(event) {
-	  if (!player.checkRef()) {
-	    return false;
-	  }
-
-	  // all existing interactive elements should stop being interactive once
-	  // one is clicked - those choices are no longer available to the player
-	  dom.deactivateAllInteractiveEls();
-
-	  var item = event.target;
-	  var actionEl = document.createElement("p");
-	  actionEl.innerText = "You look at the " + item.dataset.name + ".";
-	  dom.outputEl.appendChild(actionEl);
-
-	  // a tick or two passes during this inspection of the item
-	  var tickCount = 0;
-	  var interval = window.setInterval(function () {
-	    dom.appendWaitIndicatorToOutputEl();
-	    tickCount++;
-
-	    if (tickCount === 1) {
-	      // after a moment, show the item's full description
-	      var itemDescriptionEl = document.createElement("p");
-	      itemDescriptionEl.innerText = item.dataset.description;
-	      dom.outputEl.appendChild(itemDescriptionEl);
-	    }
-
-	    if (tickCount === 2) {
-	      // after another moment, can see the item's actions (if any)
-	      dbItemsRef.child(item.dataset.uid).once("value", function (snapshot) {
-	        var itemData = snapshot.val();
-	        if (itemData && itemData.actions) {
-	          (function () {
-	            var permittedActionEls = filterPermittedActions(itemData).map(createItemActionEl);
-	            var actionsNode = document.createElement("p");
-	            actionsNode.appendChild(document.createTextNode("You could "));
-	            permittedActionEls.forEach(function (el, index) {
-	              actionsNode.appendChild(el);
-	              actionsNode.appendChild(document.createTextNode(" the " + itemData.name));
-	              if (permittedActionEls.length > 1) {
-	                if (index === permittedActionEls.length - 2) {
-	                  actionsNode.appendChild(document.createTextNode(" or "));
-	                } else if (index < permittedActionEls.length - 2) {
-	                  actionsNode.appendChild(document.createTextNode(", "));
-	                }
-	              }
-	            });
-	            actionsNode.appendChild(document.createTextNode("."));
-	            dom.outputEl.appendChild(actionsNode);
-	          })();
-	        }
-
-	        window.clearInterval(interval);
-
-	        // show the 'Done' interactable once we've printed everything else
-	        dom.appendGoBackElToOutputEl();
-
-	        // add a dot of breathing space
-	        dom.appendWaitIndicatorToOutputEl();
-	      });
-
-	      player.increaseTicksPassedBy(1);
-	    }
-	  }, 1000);
-	};
-
-	var filterPermittedActions = function filterPermittedActions(itemData) {
-	  var actions = itemData.actions;
-	  var permittedActions = [];
-
-	  for (var key in actions) {
-	    var action = actions[key];
-	    var conditions = action.conditions;
-
-	    if (conditions.includes("on-player") && itemData.location === "on-player" || conditions.includes("not-on-player") && itemData.location !== "on-player") {
-	      permittedActions.push({
-	        description: action.description,
-	        done: action.return,
-	        itemName: itemData.name,
-	        name: key,
-	        ticksRequired: action.ticksRequired
-	      });
-	    }
-	  }
-
-	  return permittedActions;
-	};
-
-	var createItemActionEl = function createItemActionEl(action) {
-	  var span = document.createElement("span");
-	  span.classList.add("interactive");
-	  span.innerText = action.name;
-	  span.onclick = function (event) {
-	    if (!player.checkRef()) {
-	      return false;
-	    }
-
-	    var ticksRequired = parseInt(action.ticksRequired, 10);
-	    var tickCount = 0;
-
-	    // show statement of action taken immediately
-	    var actionStatement = document.createElement("p");
-	    actionStatement.innerText = "You " + action.name + " the " + action.itemName + ".";
-	    dom.outputEl.appendChild(actionStatement);
-
-	    // start interval timer according to ticksRequired
-	    var interval = window.setInterval(function () {
-	      dom.appendWaitIndicatorToOutputEl();
-	      tickCount++;
-
-	      // after 1 tick, show description/result of action
-	      if (tickCount === 1) {
-	        var actionDescription = document.createElement("p");
-	        actionDescription.innerText = action.description;
-	        dom.outputEl.appendChild(actionDescription);
-
-	        // and the goBack action also
-	        dom.appendGoBackElToOutputEl(action.done + " the " + action.itemName);
-	      }
-
-	      if (tickCount === ticksRequired) {
-	        player.increaseTicksPassedBy(ticksRequired);
-	        window.clearInterval(interval);
-	      }
-	    }, 1000);
-	  };
-	  return span;
-	};
-
-/***/ }
+/***/ })
 /******/ ]);
